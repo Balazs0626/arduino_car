@@ -62,11 +62,13 @@ void setup()
   pinMode(ULTRASONIC_ECHO, INPUT);
 
   moveServo(90);
+
+  //moveServo(-90);
 }
 
 void loop()
 {
-
+  
   CheckDistance();
 
   if (distance >= MIN_DISTANCE)
@@ -97,12 +99,12 @@ void loop()
       if (leftDistance < rightDistance)
       {
         Left(1);
-        delay(500);
+        delay(400);
       }
       else
       {
         Right(1);
-        delay(500);
+        delay(400);
       }
 
       checking = false;
@@ -148,12 +150,12 @@ void CheckDistance()
 
 void CheckLeftSide()
 {
-  moveServo(180);
+  moveServo(270);
 }
 
 void CheckRightSide()
 {
-  moveServo(0);
+  moveServo(-90);
 }
 
 void Forward(int duration)
