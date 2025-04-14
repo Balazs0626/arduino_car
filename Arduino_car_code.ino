@@ -1,5 +1,7 @@
 //#include <IRremote.h>
 //#include <Servo.h>
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
 
 #define FORWARD 0xFF18E7
 #define BACKWARD 0xFF4AB5
@@ -12,7 +14,10 @@
 #define ULTRASONIC_ECHO A1
 #define ULTRASONIC_TRIG A2
 
-#define MIN_DISTANCE 25
+#define MIN_DISTANCE 15
+#define MAX_DISTANCE 900
+
+LiquidCrystal_I2C lcd(0x27, 2, 16);
 
 /* IR variables
   const int RemotePin = 12;
@@ -63,6 +68,9 @@ void setup()
 
   moveServo(90);
 
+  lcd.init();
+  lcd.backlight();
+
   //moveServo(-90);
 }
 
@@ -71,16 +79,33 @@ void loop()
   
   CheckDistance();
 
+  if (distance > MAX_DISTANCE)
+  {
+    distance = 0;
+  }
+
   if (distance >= MIN_DISTANCE)
   {
-    Forward(1);
+    Forward(100);
     moveServo(90);
+
+    lcd.init();
+    lcd.setCursor(0,0);
+    lcd.print("Distance: ");
+    lcd.setCursor(10,0);
+    lcd.print(distance);
+    lcd.setCursor(13,0);
+    lcd.print("cm");
+
   }
   else
   {
     Stop();
     //Left();
     //delay(1100);
+
+    Backward(600);
+    Stop();
 
     checking = true;
 
@@ -96,15 +121,43 @@ void loop()
       rightDistance = distance;
       delay(1000);
 
+      lcd.init();
+
+      lcd.setCursor(0,0);
+      lcd.print("Left: ");
+      lcd.setCursor(6,0);
+      lcd.print(leftDistance);
+      lcd.setCursor(9,0);
+      lcd.print("cm");
+
+      lcd.setCursor(0,1);
+      lcd.print("Right: ");
+      lcd.setCursor(7,1);
+      lcd.print(rightDistance);
+      lcd.setCursor(10,1);
+      lcd.print("cm");
+
+      if (leftDistance > 500)
+      {
+        Left(100);
+        Stop();
+      }
+
+      if (rightDistance > 500)
+      {
+        Right(100);
+        Stop();
+      }
+
       if (leftDistance < rightDistance)
       {
-        Left(1);
-        delay(400);
+        Left(400);
+        Stop();
       }
       else
       {
-        Right(1);
-        delay(400);
+        Right(400);
+        Stop();
       }
 
       checking = false;
@@ -145,17 +198,17 @@ void CheckDistance()
   digitalWrite(ULTRASONIC_TRIG, LOW);
 
   duration = pulseIn(ULTRASONIC_ECHO , HIGH);
-  distance = duration *0.034/2;
+  distance = duration*0.034/2;
 }
 
 void CheckLeftSide()
 {
-  moveServo(270);
+  moveServo(180);
 }
 
 void CheckRightSide()
 {
-  moveServo(-90);
+  moveServo(0);
 }
 
 void Forward(int duration)
@@ -166,7 +219,7 @@ void Forward(int duration)
   digitalWrite(in2, LOW);
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
-  delay(duration * 100);
+  delay(duration);
 }
 
 void Backward(int duration)
@@ -177,13 +230,11 @@ void Backward(int duration)
   digitalWrite(in2, HIGH);
   digitalWrite(in3, LOW);
   digitalWrite(in4, HIGH);
-  delay(duration * 100);
+  delay(duration);
 }
 
 void Stop()
 {
-  analogWrite(speed1, 0);
-  analogWrite(speed2, 0);
   digitalWrite(in1, LOW);
   digitalWrite(in2, LOW);
   digitalWrite(in3, LOW);
@@ -198,7 +249,7 @@ int Left(int duration)
   digitalWrite(in2, HIGH);
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
-  delay(duration * 100);
+  delay(duration);
 }
 
 int Right(int duration)
@@ -209,5 +260,5 @@ int Right(int duration)
   digitalWrite(in2, LOW);
   digitalWrite(in3, LOW);
   digitalWrite(in4, HIGH);
-  delay(duration * 100);
+  delay(duration);
 }
