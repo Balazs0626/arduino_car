@@ -1,6 +1,6 @@
 //#include <IRremote.h>
 //#include <Servo.h>
-#include <LiquidCrystal_I2C.h>
+//#include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 
 #define FORWARD 0xFF18E7
@@ -17,7 +17,7 @@
 #define MIN_DISTANCE 15
 #define MAX_DISTANCE 900
 
-LiquidCrystal_I2C lcd(0x27, 2, 16);
+//LiquidCrystal_I2C lcd(0x27, 2, 16);
 
 /* IR variables
   const int RemotePin = 12;
@@ -68,8 +68,8 @@ void setup()
 
   moveServo(90);
 
-  lcd.init();
-  lcd.backlight();
+  //lcd.init();
+  //lcd.backlight();
 
   //moveServo(-90);
 }
@@ -79,16 +79,11 @@ void loop()
   
   CheckDistance();
 
-  if (distance > MAX_DISTANCE)
-  {
-    distance = 0;
-  }
-
   if (distance >= MIN_DISTANCE)
   {
     Forward(100);
     moveServo(90);
-
+    /*
     lcd.init();
     lcd.setCursor(0,0);
     lcd.print("Distance: ");
@@ -96,14 +91,12 @@ void loop()
     lcd.print(distance);
     lcd.setCursor(13,0);
     lcd.print("cm");
+    */
 
   }
   else
   {
     Stop();
-    //Left();
-    //delay(1100);
-
     Backward(600);
     Stop();
 
@@ -121,6 +114,7 @@ void loop()
       rightDistance = distance;
       delay(1000);
 
+      /*
       lcd.init();
 
       lcd.setCursor(0,0);
@@ -136,7 +130,9 @@ void loop()
       lcd.print(rightDistance);
       lcd.setCursor(10,1);
       lcd.print("cm");
-
+      */
+      
+      /*
       if (leftDistance > 500)
       {
         Left(100);
@@ -148,6 +144,7 @@ void loop()
         Right(100);
         Stop();
       }
+      */
 
       if (leftDistance < rightDistance)
       {
