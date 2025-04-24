@@ -1,6 +1,5 @@
-//#include <IRremote.h>
-//#include <Servo.h>
-//#include <LiquidCrystal_I2C.h>
+
+#include <IRremote.h>
 #include <Wire.h>
 
 #define FORWARD 0xFF18E7
@@ -9,142 +8,160 @@
 #define RIGHT 0xFF5AA5
 #define STOP 0xFF38C7
 
-#define SERVO_PIN 3
+#define BUTTON1 0xFFA25D
+#define BUTTON2 0xFF629D
+#define BUTTON3 0xFFE21D
+#define BACK 0xFF6897
+
+#define IN1 9
+#define IN2 8
+#define IN3 7
+#define IN4 6
+
+#define SPEED1 5
+#define SPEED2 10
+
+#define SERVO 3
+
+#define IR 12
 
 #define ULTRASONIC_ECHO A1
 #define ULTRASONIC_TRIG A2
 
 #define MIN_DISTANCE 15
-#define MAX_DISTANCE 900
+#define MAX_DISTANCE 1000
 
-//LiquidCrystal_I2C lcd(0x27, 2, 16);
-
-/* IR variables
-  const int RemotePin = 12;
-  IRrecv irrecv(RemotePin);
-  decode_results results;
+/*
+  1 - FFA25D
+  2 - FF629D
+  3 - FFE21D
+  4 - FF22DD
+  5 - FF02FD
+  6 - FFC23D
+  7 - FFE01F
+  8 - FFA857
+  9 - FF906F
+  * - FF6897
+  0 - FF9867
+  # - FFB04F
+  ^ - FF18E7
+  ˇ - FF4AB5
+  < - FF10EF
+  > - FF5AA5
+  OK - FF38C7
 */
 
-int in1 = 9;
-int in2 = 8;
-int in3 = 7;
-int in4 = 6;
-
-int speed1 = 5;
-int speed2 = 10;
-
-bool checking = false;
+IRrecv irrecv(IR);
+decode_results results;
 
 int leftDistance, rightDistance;
-
 int distance;
 float duration;
 
-void moveServo(int angle)
-{
-  int pulseWidth = map(angle, 0, 180, 1000, 2000);
-  digitalWrite(SERVO_PIN, HIGH);
-  delayMicroseconds(pulseWidth);
-  digitalWrite(SERVO_PIN, LOW);
-  delay(20);
-}
+byte functionType = 0;
 
 void setup()
 {
 
   Serial.begin(9600);
 
-  //irrecv.enableIRIn(); //IR setup
+  irrecv.enableIRIn();
 
-  pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT);
-  pinMode(in3, OUTPUT);
-  pinMode(in4, OUTPUT);
-  pinMode(speed1, OUTPUT);
-  pinMode(speed2, OUTPUT);
-  pinMode(SERVO_PIN, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(SPEED1, OUTPUT);
+  pinMode(SPEED2, OUTPUT);
+  pinMode(SERVO, OUTPUT);
   pinMode(ULTRASONIC_TRIG, OUTPUT);
   pinMode(ULTRASONIC_ECHO, INPUT);
 
   moveServo(90);
-
-  //lcd.init();
-  //lcd.backlight();
-
-  //moveServo(-90);
 }
 
 void loop()
 {
-  
-  CheckDistance();
 
-  if (distance >= MIN_DISTANCE)
+  if (irrecv.decode(&results))
   {
-    Forward(100);
-    moveServo(90);
-    /*
-    lcd.init();
-    lcd.setCursor(0,0);
-    lcd.print("Distance: ");
-    lcd.setCursor(10,0);
-    lcd.print(distance);
-    lcd.setCursor(13,0);
-    lcd.print("cm");
-    */
-
-  }
-  else
-  {
-    Stop();
-    Backward(600);
-    Stop();
-
-    checking = true;
-
-    if (checking)
+    if (functionType == 0)
     {
+      if (results.value == BUTTON1)
+      {
+        functionType = 1;
+      }
+      else if (results.value == BUTTON2)
+      {
+        functionType = 2;
+      }
+      else if (results.value == BUTTON3)
+      {
+        functionType = 3;
+      }
+    }
+    else
+    {
+      if (results.value == BACK)
+      {
+        functionType = 0;
+        moveServo(90);
+      }
+    }
+    irrecv.resume();
+  }
+
+  if (functionType == 1) //IR remote mode
+  {
+    
+  }
+  else if (functionType == 2) //Obstacle avoidance mode
+  {
+    CheckDistance();
+
+    if (distance >= MIN_DISTANCE && distance < MAX_DISTANCE)
+    {
+      Forward(0);
+      moveServo(90);
+    }
+    else
+    {
+      Stop();
+      Backward(400);
+      Stop();
+
+
       CheckLeftSide();
       CheckDistance();
-      leftDistance = distance;
+      
+      if (distance > MAX_DISTANCE)
+      {
+        Left(300);
+        Stop();
+        return;
+      }
+      else
+      {
+        leftDistance = distance;
+      }
+
       delay(1000);
 
       CheckRightSide();
       CheckDistance();
-      rightDistance = distance;
+
+      if (distance > MAX_DISTANCE)
+      {
+        Right(300);
+        Stop();
+        return;
+      }
+      else
+      {
+        rightDistance = distance;
+      }
+
       delay(1000);
-
-      /*
-      lcd.init();
-
-      lcd.setCursor(0,0);
-      lcd.print("Left: ");
-      lcd.setCursor(6,0);
-      lcd.print(leftDistance);
-      lcd.setCursor(9,0);
-      lcd.print("cm");
-
-      lcd.setCursor(0,1);
-      lcd.print("Right: ");
-      lcd.setCursor(7,1);
-      lcd.print(rightDistance);
-      lcd.setCursor(10,1);
-      lcd.print("cm");
-      */
-      
-      /*
-      if (leftDistance > 500)
-      {
-        Left(100);
-        Stop();
-      }
-
-      if (rightDistance > 500)
-      {
-        Right(100);
-        Stop();
-      }
-      */
 
       if (leftDistance < rightDistance)
       {
@@ -157,33 +174,119 @@ void loop()
         Stop();
       }
 
-      checking = false;
+      Serial.print("Left:");
+      Serial.println(leftDistance);
+      Serial.print("Right:");
+      Serial.println(rightDistance);
     }
-
-    Serial.print("Left:");
-    Serial.println(leftDistance);
-    Serial.print("Right:");
-    Serial.println(rightDistance);
   }
+  else if (functionType == 3) //Line tracking mode
+  {
+    
+  }
+  /*if (!IS_IR)
+  {
+    CheckDistance();
 
-/*  IR movement
-  if (irrecv.decode(&results)) {
-    if (results.value == FORWARD) {
-      Forward();
-    } else if (results.value == BACKWARD) {
-      Backward();
-    } else if (results.value == LEFT) {
-      Left();
-    } else if (results.value == RIGHT) {
-      Right();
-    } else if (results.value == STOP) {
+    if (distance >= MIN_DISTANCE && distance < MAX_DISTANCE)
+    {
+      Forward(0);
+      moveServo(90);
+    }
+    else
+    {
       Stop();
+      Backward(400);
+      Stop();
+
+
+      CheckLeftSide();
+      CheckDistance();
+      
+      if (distance > MAX_DISTANCE)
+      {
+        Left(300);
+        Stop();
+        return;
+      }
+      else
+      {
+        leftDistance = distance;
+      }
+
+
+      
+      delay(1000);
+
+      CheckRightSide();
+      CheckDistance();
+
+      if (distance > MAX_DISTANCE)
+      {
+        Right(300);
+        Stop();
+        return;
+      }
+      else
+      {
+        rightDistance = distance;
+      }
+
+      delay(1000);
+
+      if (leftDistance < rightDistance)
+      {
+        Left(400);
+        Stop();
+      }
+      else
+      {
+        Right(400);
+        Stop();
+      }
+
+      Serial.print("Left:");
+      Serial.println(leftDistance);
+      Serial.print("Right:");
+      Serial.println(rightDistance);
     }
-
-    irrecv.resume();
   }
-*/
+  else
+  {
 
+    IR movement
+    if (irrecv.decode(&results)) {
+      if (results.value == FORWARD) {
+        Forward(0);
+      } else if (results.value == BACKWARD) {
+        Backward(0);
+      } else if (results.value == LEFT) {
+        Left(0);
+      } else if (results.value == RIGHT) {
+        Right(0);
+      } else if (results.value == STOP) {
+        Stop();
+      } else {
+        results.value = 0;
+      }
+
+      irrecv.resume();
+    }
+  }*/
+
+  
+
+}
+
+#pragma region Obstacle_avoidance
+
+void moveServo(int angle)
+{
+  int pulseWidth = map(angle, 0, 180, 1000, 2000);
+  digitalWrite(SERVO, HIGH);
+  delayMicroseconds(pulseWidth);
+  digitalWrite(SERVO, LOW);
+  delay(20);
 }
 
 void CheckDistance()
@@ -208,54 +311,59 @@ void CheckRightSide()
   moveServo(0);
 }
 
+#pragma endregion Obstacle_avoidance
+
+#pragma region Movement
+
 void Forward(int duration)
 {
-  analogWrite(speed1, 100);
-  analogWrite(speed2, 100);
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, HIGH);
-  digitalWrite(in4, LOW);
+  analogWrite(SPEED1, 100);
+  analogWrite(SPEED2, 100);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
   delay(duration);
 }
 
 void Backward(int duration)
 {
-  analogWrite(speed1, 100);
-  analogWrite(speed2, 100);
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, HIGH);
+  analogWrite(SPEED1, 100);
+  analogWrite(SPEED2, 100);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
   delay(duration);
 }
 
 void Stop()
 {
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, LOW);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
 }
 
 int Left(int duration)
 {
-  analogWrite(speed1, 150);
-  analogWrite(speed2, 150);
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, HIGH);
-  digitalWrite(in4, LOW);
+  analogWrite(SPEED1, 150);
+  analogWrite(SPEED2, 150);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
   delay(duration);
 }
 
 int Right(int duration)
 {
-  analogWrite(speed1, 150);
-  analogWrite(speed2, 150);
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, HIGH);
+  analogWrite(SPEED1, 150);
+  analogWrite(SPEED2, 150);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
   delay(duration);
 }
+#pragma endregion Movement
