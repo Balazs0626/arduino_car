@@ -1,6 +1,4 @@
-
 #include <IRremote.h>
-#include <Wire.h>
 
 #define FORWARD 0xFF18E7
 #define BACKWARD 0xFF4AB5
@@ -28,10 +26,13 @@
 #define ULTRASONIC_ECHO A1
 #define ULTRASONIC_TRIG A2
 
+#define IR_LINE_LEFT 2
+#define IR_LINE_RIGHT 4
+
 #define MIN_DISTANCE 15
 #define MAX_DISTANCE 1000
 
-/*
+/* IR Remote codes
   1 - FFA25D
   2 - FF629D
   3 - FFE21D
@@ -51,14 +52,26 @@
   OK - FF38C7
 */
 
+byte functionType = 0;
+
 IRrecv irrecv(IR);
 decode_results results;
+
+byte movement;
+unsigned long lastCommandTime = 0;
+int lastMovementDirection;
+
+int forward = FORWARD;
+int backward = BACKWARD;
+int left = LEFT;
+int right = RIGHT;
 
 int leftDistance, rightDistance;
 int distance;
 float duration;
 
-byte functionType = 0;
+int SR;
+int SL;
 
 void setup()
 {
@@ -76,6 +89,8 @@ void setup()
   pinMode(SERVO, OUTPUT);
   pinMode(ULTRASONIC_TRIG, OUTPUT);
   pinMode(ULTRASONIC_ECHO, INPUT);
+  pinMode(IR_LINE_LEFT, INPUT);
+  pinMode(IR_LINE_RIGHT, INPUT);
 
   moveServo(90);
 }
@@ -83,8 +98,11 @@ void setup()
 void loop()
 {
 
+  //Serial.println(functionType);
+
   if (irrecv.decode(&results))
   {
+    //Serial.println(results.value, HEX);
     if (functionType == 0)
     {
       if (results.value == BUTTON1)
@@ -99,24 +117,104 @@ void loop()
       {
         functionType = 3;
       }
+      irrecv.resume();
     }
-    else
+/*     else
     {
       if (results.value == BACK)
       {
         functionType = 0;
         moveServo(90);
+        irrecv.resume();
+        return;
       }
-    }
-    irrecv.resume();
+    } */
+    
   }
 
   if (functionType == 1) //IR remote mode
   {
-    
+    if (irrecv.decode(&results))
+    {
+      //Serial.println(results.value, HEX);
+
+      if (results.value == BACK)
+      {
+        functionType = 0;
+        moveServo(90);
+        irrecv.resume();
+        Serial.println("Back - IR");
+        return;
+      }
+
+      if (results.value != 0xFFFFFFFF)
+      {
+        lastMovementDirection = results.value;
+      }
+      
+      if (results.value == 0xFFFFFFFF)
+      {
+        if (lastMovementDirection == forward)
+        {
+          movement = 1;
+          lastCommandTime = millis();
+        }
+        else if (lastMovementDirection == backward)
+        {
+          movement = 2;
+          lastCommandTime = millis();
+        }
+        else if (lastMovementDirection == left)
+        {
+          movement = 3;
+          lastCommandTime = millis();
+        }
+        else if (lastMovementDirection == right)
+        {
+          movement = 4;
+          lastCommandTime = millis();
+        }
+      }
+      irrecv.resume();
+    }
+
+    if (movement == 1 && millis() - lastCommandTime < 200)
+    {
+      Forward(0);
+    }
+    else if (movement == 2 && millis() - lastCommandTime < 200)
+    {
+      Backward(0);
+    }
+    else if (movement == 3 && millis() - lastCommandTime < 200)
+    {
+      Left(0);
+    }
+    else if (movement == 4 && millis() - lastCommandTime < 200)
+    {
+      Right(0);
+    }
+    else
+    {
+      Stop();
+      movement = 0;
+    }
   }
   else if (functionType == 2) //Obstacle avoidance mode
   {
+
+    if (irrecv.decode(&results))
+    {
+      if (results.value == BACK)
+      {
+        functionType = 0;
+        moveServo(90);
+        Serial.println("Back - Ultrasonic");
+        return;
+      }
+      irrecv.resume();
+    }
+
     CheckDistance();
 
     if (distance >= MIN_DISTANCE && distance < MAX_DISTANCE)
@@ -174,16 +272,51 @@ void loop()
         Stop();
       }
 
-      Serial.print("Left:");
+      /* Serial.print("Left:");
       Serial.println(leftDistance);
       Serial.print("Right:");
-      Serial.println(rightDistance);
+      Serial.println(rightDistance); */
     }
   }
   else if (functionType == 3) //Line tracking mode
   {
-    
+
+    if (irrecv.decode(&results))
+    {
+      if (results.value == BACK)
+      {
+        functionType = 0;
+        moveServo(90);
+        Serial.println("Back - Line");
+        return;
+      }
+      irrecv.resume();
+    }
+
+    SL = digitalRead(IR_LINE_LEFT);
+    SR = digitalRead(IR_LINE_RIGHT);
+
+    if (SL == LOW && SR==LOW)
+    { 
+      Forward(0);
+    }        
+    else
+    {  
+      if (SL == HIGH & SR == LOW)
+      {  
+        Right(0);
+      }
+      else if (SR == HIGH & SL == LOW)
+      {  
+        Left(0);  
+      }
+      else
+      {    
+        Stop();
+      }
+    }
   }
+
   /*if (!IS_IR)
   {
     CheckDistance();
